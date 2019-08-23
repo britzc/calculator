@@ -1,0 +1,5 @@
+.DS_Store
+*.json
+*.csv
+/cmd/releases
+/cmd/run.sh
