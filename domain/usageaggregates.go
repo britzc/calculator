@@ -31,6 +31,8 @@ type Properties struct {
 	Unit             string        `json:"unit"`
 	InstanceDataText string        `json:"instanceData"`
 	InstanceData     *InstanceData `json:"-"`
+	ResourceGroup    string        `json:"-"`
+	Resource         string        `json:"-"`
 	MeterID          string        `json:"meterId"`
 	Quantity         float64       `json:"quantity"`
 }
@@ -41,10 +43,4 @@ type UsageRecord struct {
 	Name       string     `json:"name"`
 	Type       string     `json:"type"`
 	Properties Properties `json:"properties"`
-}
-
-// UsageAggregates - Contains all the usage records
-type UsageAggregates struct {
-	UsageRecords []*UsageRecord `json:"value"`
-	NextLink     string         `json:"nextLink"`
 }

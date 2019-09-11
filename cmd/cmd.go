@@ -14,6 +14,7 @@ import (
 	"bitbucket.org/corneilebritz/cloudcostcalculator/cloud"
 	"bitbucket.org/corneilebritz/cloudcostcalculator/csv"
 	"bitbucket.org/corneilebritz/cloudcostcalculator/domain"
+	"bitbucket.org/corneilebritz/cloudcostcalculator/tags"
 
 	client "github.com/influxdata/influxdb1-client/v2"
 )
@@ -73,8 +74,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Println("Authenticating with Azure")
-	token, err := cloud.GetToken(config)
+	log.Println("Creating Azure Client")
+	azureClient, err := cloud.NewAzureClient(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Loading Groups")
+	groupMap, err := azureClient.GetGroups()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,12 +96,12 @@ func main() {
 	defer c.Close()
 
 	log.Printf("Extracting Azure Costs: %s\n", config.Subscription)
-	if err := ExtractData(token, config, fromDate, toDate, c); err != nil {
+	if err := ExtractData(azureClient, groupMap, config, fromDate, toDate, c); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func ExtractData(token *domain.Token, config *domain.Config, fromDate, toDate time.Time, c client.Client) (err error) {
+func ExtractData(cloudClient *cloud.AzureClient, groupMap map[string]*domain.Group, config *domain.Config, fromDate, toDate time.Time, c client.Client) (err error) {
 	outPath := fmt.Sprintf("data/_%s.csv", config.Subscription)
 	outFile, err := os.Create(outPath)
 	if err != nil {
@@ -105,26 +112,23 @@ func ExtractData(token *domain.Token, config *domain.Config, fromDate, toDate ti
 
 	csv.WriteHeaders(outWriter)
 
-	log.Println("Loading Rate Card")
-	rateCard, err := cloud.GetRateCard(token, config)
+	log.Println("Loading Meters")
+	meters, err := cloudClient.GetMeters()
 	if err != nil {
 		return err
 	}
-
-	log.Println("Mapping Rate Meters")
-	rateMeters := LoadRateMeters(rateCard)
 
 	for fromDate.Before(toDate) {
 		var usageRecords []*domain.UsageRecord
 
 		retryCount := 1
 		for retryCount >= 0 {
-			log.Printf("Retrieving UsageAggregates for %s: Attempt %d\n", fromDate, retryCount)
-			usageRecords, err = cloud.GetUsageRecords(token, config, fromDate, fromDate.Add(24*time.Hour))
+			log.Printf("Retrieving Readings for %s: Attempt %d\n", fromDate, retryCount)
+			usageRecords, err = cloudClient.GetReadings(fromDate, fromDate.Add(24*time.Hour))
 			if err != nil {
 				return err
 			}
-			log.Printf("UsageRecords Count: %d\n", len(usageRecords))
+			log.Printf("Readin Count: %d\n", len(usageRecords))
 
 			if len(usageRecords) > 0 {
 				retryCount = 0
@@ -133,8 +137,10 @@ func ExtractData(token *domain.Token, config *domain.Config, fromDate, toDate ti
 			retryCount -= 1
 		}
 
+		tags.ApplyDefaults(usageRecords, groupMap, config.TagDefaults)
+
 		log.Println("Calculating Costs")
-		CalculateCosts(usageRecords, config, rateMeters)
+		CalculateCosts(usageRecords, config, meters)
 
 		log.Println("Aggregating Records")
 		points := aggregate.AggregateData(usageRecords, config)
@@ -166,15 +172,6 @@ func ExtractData(token *domain.Token, config *domain.Config, fromDate, toDate ti
 	}
 
 	return nil
-}
-
-func LoadRateMeters(rateCard *domain.RateCard) (mm map[string]*domain.Meter) {
-	mm = make(map[string]*domain.Meter)
-	for _, meter := range rateCard.Meters {
-		mm[meter.MeterID] = meter
-	}
-
-	return mm
 }
 
 func CalculateCosts(records []*domain.UsageRecord, config *domain.Config, meters map[string]*domain.Meter) {

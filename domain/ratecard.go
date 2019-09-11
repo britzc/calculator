@@ -18,11 +18,3 @@ type Meter struct {
 	UnitOfMeasure    string             `json:"UnitOfMeasure"`
 	Unit             string             `json:"Unit"`
 }
-
-// RateCard - Details for subscription billing
-type RateCard struct {
-	Meters        []*Meter `json:"Meters"`
-	Currency      string   `json:"Currency"`
-	Local         string   `json:"Local"`
-	IsTaxIncluded bool     `json:"IsTaxIncluded"`
-}

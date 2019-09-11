@@ -58,15 +58,9 @@ func CreateTags(record *domain.UsageRecord, config *domain.Config) (tags map[str
 		"MeterID":          record.Properties.MeterID,
 		"MeterCategory":    record.Properties.MeterCategory,
 		"MeterSubCategory": record.Properties.MeterSubCategory,
-		"ResourceGroup":    config.MissingDefault,
-		"Resource":         config.MissingDefault,
 		"BillPeriod":       record.Name,
-	}
-
-	if record.Properties.InstanceData != nil {
-		parts := strings.Split(record.Properties.InstanceData.Resources.ResourceURI, "/")
-		tags["ResourceGroup"] = parts[4]
-		tags["Resource"] = parts[8]
+		"ResourceGroup":    record.Properties.ResourceGroup,
+		"Resource":         record.Properties.Resource,
 	}
 
 	for key, value := range config.TagDefaults {
