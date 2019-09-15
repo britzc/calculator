@@ -105,10 +105,6 @@ func (z *AzureClient) GetReadings(startDate, endDate time.Time) (ur []*domain.Us
 		return nil, err
 	}
 
-	if err := populateInstanceData(jb.UsageRecords); err != nil {
-		return nil, err
-	}
-
 	ur = append(ur, jb.UsageRecords...)
 
 	for len(jb.NextLink) > 0 {
@@ -119,11 +115,11 @@ func (z *AzureClient) GetReadings(startDate, endDate time.Time) (ur []*domain.Us
 			return nil, err
 		}
 
-		if err := populateInstanceData(jb.UsageRecords); err != nil {
-			return nil, err
-		}
-
 		ur = append(ur, jb.UsageRecords...)
+	}
+
+	if err := populateInstanceData(ur); err != nil {
+		return nil, err
 	}
 
 	return ur, nil
@@ -152,13 +148,14 @@ func (z *AzureClient) login() (err error) {
 func populateInstanceData(records []*domain.UsageRecord) (err error) {
 	for _, record := range records {
 		if err := json.Unmarshal([]byte(record.Properties.InstanceDataText), &record.Properties.InstanceData); err != nil {
-			return err
+			continue
 		}
 
 		if record.Properties.InstanceData != nil {
+			record.Properties.InstanceData.Resources.ResourceURI = strings.TrimLeft(record.Properties.InstanceData.Resources.ResourceURI, "/")
 			parts := strings.Split(record.Properties.InstanceData.Resources.ResourceURI, "/")
-			record.Properties.ResourceGroup = parts[4]
-			record.Properties.Resource = parts[8]
+			record.Properties.ResourceGroup = parts[3]
+			record.Properties.Resource = parts[7]
 		}
 
 		if record.Properties.InstanceData.Resources.Tags == nil {

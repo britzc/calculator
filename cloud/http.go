@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,12 +19,17 @@ func httpPostJson(url string, values url.Values, v interface{}) (err error) {
 	req.Header.Add("Content-Length", strconv.Itoa(len(values.Encode())))
 
 	tr := &http.Transport{
-		MaxIdleConns:        5,
-		MaxIdleConnsPerHost: 5,
+		DialContext: (&net.Dialer{
+			Timeout: 10 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+
+		ExpectContinueTimeout: 10 * time.Second,
+		ResponseHeaderTimeout: 9 * time.Second,
 	}
 	client := &http.Client{
 		Transport: tr,
-		Timeout:   time.Duration(5 * time.Minute),
+		Timeout:   time.Minute * 5,
 	}
 
 	resp, err := client.Do(req)
@@ -49,12 +55,17 @@ func httpGetJson(url, accessToken string, v interface{}) (err error) {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	tr := &http.Transport{
-		MaxIdleConns:        5,
-		MaxIdleConnsPerHost: 5,
+		DialContext: (&net.Dialer{
+			Timeout: 10 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+
+		ExpectContinueTimeout: 10 * time.Second,
+		ResponseHeaderTimeout: 9 * time.Second,
 	}
 	client := &http.Client{
 		Transport: tr,
-		Timeout:   time.Duration(5 * time.Minute),
+		Timeout:   time.Minute * 5,
 	}
 
 	resp, err := client.Do(req)

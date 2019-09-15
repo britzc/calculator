@@ -2,7 +2,6 @@ package aggregate
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"bitbucket.org/corneilebritz/cloudcostcalculator/domain"
@@ -12,16 +11,8 @@ func AggregateData(records []*domain.UsageRecord, config *domain.Config) (data m
 	data = make(map[string]*domain.Point)
 
 	for _, record := range records {
-		resourceGroup := config.MissingDefault
-		resource := config.MissingDefault
-		if record.Properties.InstanceData != nil {
-			parts := strings.Split(record.Properties.InstanceData.Resources.ResourceURI, "/")
-			resourceGroup = parts[4]
-			resource = parts[8]
-		}
-
 		timestamp := record.Properties.UsageStartTime.Add(time.Duration(config.TimeOffset) + time.Hour)
-		key := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s/%s", record.Properties.SubscriptionID, record.Properties.MeterID, record.Properties.MeterCategory, record.Properties.MeterSubCategory, resourceGroup, resource, record.Name, timestamp.Format(time.RFC3339))
+		key := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s/%s", record.Properties.SubscriptionID, record.Properties.MeterID, record.Properties.MeterCategory, record.Properties.MeterSubCategory, record.Properties.ResourceGroup, record.Properties.Resource, record.Name, timestamp.Format(time.RFC3339))
 		pd, found := data[key]
 		if !found {
 			tags := CreateTags(record, config)
@@ -32,8 +23,8 @@ func AggregateData(records []*domain.UsageRecord, config *domain.Config) (data m
 				MeterID:          record.Properties.MeterID,
 				MeterCategory:    record.Properties.MeterCategory,
 				MeterSubCategory: record.Properties.MeterSubCategory,
-				ResourceGroup:    resourceGroup,
-				Resource:         resource,
+				ResourceGroup:    record.Properties.ResourceGroup,
+				Resource:         record.Properties.Resource,
 				BillPeriod:       record.Name,
 				Tags:             tags,
 				Quantity:         0,

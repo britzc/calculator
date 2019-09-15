@@ -112,23 +112,33 @@ func ExtractData(cloudClient *cloud.AzureClient, groupMap map[string]*domain.Gro
 
 	csv.WriteHeaders(outWriter)
 
-	log.Println("Loading Meters")
-	meters, err := cloudClient.GetMeters()
-	if err != nil {
-		return err
+	var meters map[string]*domain.Meter
+	retryCount := 3
+	for retryCount > 0 {
+		log.Printf("Loading Meters, attempt %d\n", retryCount)
+		meters, err = cloudClient.GetMeters()
+		if err != nil && retryCount == 1 {
+			return err
+		}
+
+		if len(meters) > 0 {
+			retryCount = 0
+		}
+
+		retryCount -= 1
 	}
+	log.Printf("Meter Count: %d\n", len(meters))
 
 	for fromDate.Before(toDate) {
 		var usageRecords []*domain.UsageRecord
 
-		retryCount := 1
-		for retryCount >= 0 {
+		retryCount := 3
+		for retryCount > 0 {
 			log.Printf("Retrieving Readings for %s: Attempt %d\n", fromDate, retryCount)
 			usageRecords, err = cloudClient.GetReadings(fromDate, fromDate.Add(24*time.Hour))
-			if err != nil {
+			if err != nil && retryCount == 1 {
 				return err
 			}
-			log.Printf("Readin Count: %d\n", len(usageRecords))
 
 			if len(usageRecords) > 0 {
 				retryCount = 0
@@ -136,6 +146,7 @@ func ExtractData(cloudClient *cloud.AzureClient, groupMap map[string]*domain.Gro
 
 			retryCount -= 1
 		}
+		log.Printf("Reading Count: %d\n", len(usageRecords))
 
 		tags.ApplyDefaults(usageRecords, groupMap, config.TagDefaults)
 
