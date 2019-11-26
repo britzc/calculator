@@ -29,7 +29,7 @@ func httpPostJson(url string, values url.Values, v interface{}) (err error) {
 	}
 	client := &http.Client{
 		Transport: tr,
-		Timeout:   time.Minute * 5,
+		Timeout:   5 * time.Minute,
 	}
 
 	resp, err := client.Do(req)
@@ -65,7 +65,7 @@ func httpGetJson(url, accessToken string, v interface{}) (err error) {
 	}
 	client := &http.Client{
 		Transport: tr,
-		Timeout:   time.Minute * 5,
+		Timeout:   5 * time.Minute,
 	}
 
 	resp, err := client.Do(req)
